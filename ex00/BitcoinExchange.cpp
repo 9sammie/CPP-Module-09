@@ -141,51 +141,44 @@ void btc::processInput(std::string filename)
 {
 	std::ifstream ifs (filename.c_str());
 	if (!ifs.is_open())
-	{
-		std::cerr << "Error: could not open file." << std::endl;
-		return;
-	}
+		throw RuntimeException("could not open file.");
 
 	std::string line;
 	std::getline(ifs, line);
 
 	while (std::getline(ifs, line))
 	{
-		if (line.empty())
-			continue;
-		
-		size_t sep = line.find('|');
-		if (sep == std::string::npos)
+		try
 		{
-			std::cerr << "Error: bad input => " << line << std::endl;
-			continue;
-		}
-		std::string date = trim(line.substr(0, sep));
-		std::string valStr = trim(line.substr(sep + 1));
+			if (line.empty())
+				continue;
+			
+			size_t sep = line.find('|');
+			if (sep == std::string::npos)
+				throw RuntimeException("bad input => " + line);
+			std::string date = trim(line.substr(0, sep));
+			std::string valStr = trim(line.substr(sep + 1));
 
-		if (!isValidDate(date))
-		{
-			std::cerr << "Error: bad input => " << date << std::endl;
-			continue;
+			if (!isValidDate(date))
+				throw RuntimeException("bad input => " + date);
+
+			char* endptr;
+			float userValue = strtod(valStr.c_str(), &endptr);
+			if (*endptr != '\0' && !isspace(*endptr))
+				throw RuntimeException("bad input => " + valStr);
+
+			if (userValue < 0)
+				throw RuntimeException("not a positive number.");
+
+			if (userValue > 1000)
+				throw RuntimeException("too large a number.");
+
+			float price = getExchangeRate(date);
+			std::cout << date << " => " << userValue << " = " << (userValue * price) << std::endl;
 		}
-		char* endptr;
-		float userValue = strtod(valStr.c_str(), &endptr);
-		if (*endptr != '\0' && !isspace(*endptr))
+		catch (const std::exception& e)
 		{
-			std::cerr << "Error: bad input => " << valStr << std::endl;
-			continue;
+			std::cerr << "Error: " << e.what() << std::endl;
 		}
-		if (userValue < 0)
-		{
-			std::cerr << "Error: not a positive number." << std::endl;
-			continue;
-		}
-		if (userValue > 1000)
-		{
-			std::cerr << "Error: too large number." << std::endl;
-			continue;
-		}
-		float price = getExchangeRate(date);
-		std::cout << date << " => " << userValue << " = " << (userValue * price) << std::endl;
 	}
 }
