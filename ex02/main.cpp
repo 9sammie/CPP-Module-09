@@ -19,5 +19,8 @@ int main(int argc, char** argv)
 		std::cerr << "Error: " << e.what() << '\n';
 		return 1;
 	}
+
+	sort.launch();
+	
 	return 0;
 }

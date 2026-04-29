@@ -10,10 +10,11 @@ class PmergeMe
 {
 	private:
 
+		int _elementSize;
 		std::vector<int> _vec;
 		std::deque<int> _deq;
 
-		void sortVector(std::vector<int> _vec);
+		void sortVector(int _elementSize);
 		void sortDeque(std::deque<int> _deq);
 	
 	public:
