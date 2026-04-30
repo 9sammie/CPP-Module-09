@@ -137,17 +137,13 @@ void PmergeMe::sortVector(int _elementSize)
 	std::vector<int> main;
 	std::vector<int> pend;
 
-	for (size_t k = 0; k < _elementSize; ++k)
-		main.push_back(_vec[k]);
-	for (size_t k = 0; k < _elementSize; ++k)
-		main.push_back(_vec[_elementSize + k]);
+	for (size_t k = 0; k < _elementSize; ++k) main.push_back(_vec[k]);
+	for (size_t k = 0; k < _elementSize; ++k) main.push_back(_vec[_elementSize + k]);
 
 	for (size_t i = 2 * _elementSize; i + 2 * _elementSize <= _vec.size(); i += 2 * _elementSize)
 	{
-		for (size_t k = 0; k < _elementSize; ++k)
-			pend.push_back(_vec[i + k]);
-		for (size_t k = 0; k < _elementSize; ++k)
-			main.push_back(_vec[i + _elementSize + k]);
+		for (size_t k = 0; k < _elementSize; ++k) pend.push_back(_vec[i + k]);
+		for (size_t k = 0; k < _elementSize; ++k) main.push_back(_vec[i + _elementSize + k]);
 	}
 
 	size_t processedSize = (_vec.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _vec.size() = 17 --> ((17/(2*1)) * (2*1) = 16
@@ -160,7 +156,10 @@ void PmergeMe::sortVector(int _elementSize)
 
 	std::vector<int> jacob;
 	if (pendElementNbr == 0)
+	{
+		printf("Out\n");
 		return;
+	}
 
 	jacob.push_back(3);
 	jacob.push_back(5);
@@ -170,62 +169,72 @@ void PmergeMe::sortVector(int _elementSize)
 		jacob.push_back(nextJacob);
 	}
 
-	// Création de l'ordre d'insertion
+	std::cout << "_elementSize: " << _elementSize << ". Suite de Jacobsthal genere : ";
+	for (size_t i = 0; i < jacob.size(); ++i) std::cout << jacob[i] << " ";
+	std::cout << std::endl;
+
+	// // Création de l'ordre d'insertion
+	size_t maxBNbr = (pend.size() / _elementSize + 1);
+
+	// printf("maxBNbr: %zu\n", maxBNbr);
+
 	std::vector<int> insertionOrder;
 	size_t lastJacob = 1;
 
 	for (size_t i = 0; i < jacob.size(); i++)
 	{
 		size_t currentJacob = jacob[i];
-		size_t startIdx = (currentJacob > pendElementNbr) ? pendElementNbr : currentJacob;
+		size_t startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
 
 		for (size_t j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
 			insertionOrder.push_back(j);
+		if (currentJacob >= pendElementNbr)
+	        break;
 		lastJacob = currentJacob;
 	}
+
+	// std::cout << "insertionOrder: " << std::endl;
+	// for (size_t k = 0; k < insertionOrder.size(); ++k) std::cout << insertionOrder[k] << " ";
+	// std::cout << std::endl;
 
 	// proceder au binary insertion en comparant d'abord les pend element (b) indique par le vecteur jacob.
 	for (size_t i = 0; i < insertionOrder.size(); ++i)
 	{
 		size_t itemIdx = insertionOrder[i];
-		int elementMaster = pend[(itemIdx - 1) * _elementSize + _elementSize - 1]; // find the master element of the pend we want to compare with the master element of the main.
+		int elementMaster = pend[(itemIdx - 2) * _elementSize + _elementSize - 1]; // find the master element of the pend we want to compare with the master element of the main.
 		size_t high;
 		
+		printf("itemIdx: %zu\n", itemIdx);
+
 		if (itemIdx * 2 * _elementSize > _vec.size())		// if itemIdx too big, he is an orphan, so we search in the entire main.
-			high = main.size() / _elementSize;
+			high = main.size();
 		else												// else we index high on the main element master matching the pending one.
 		{
 			int mainElementMaster = _vec[(itemIdx * 2) * _elementSize - 1];
+			printf("mainElementMaster: %d\n", mainElementMaster);
 			high = 0;
 			while (high < main.size() / _elementSize && main[high * _elementSize + _elementSize - 1] != mainElementMaster)
 				high++;
 		}
 
+		printf("high: %zu\n", high);
+
 		size_t low = 0;
 		while (low < high)
 		{
 			size_t mid = low + (high - low) / 2;
-			if (main[mid * _elementSize -1] < elementMaster)
+			if (main[(mid + 1)* _elementSize -1] < elementMaster)
 				low = mid + 1;
 			else
 				high = mid;
 		}
 
 		std::vector<int>::iterator insertPos = main.begin() + (low * _elementSize);
-		std::vector<int>::iterator pendStart = pend.begin() + (itemIdx - 1) * _elementSize;
+		std::vector<int>::iterator pendStart = pend.begin() + (itemIdx - 2) * _elementSize;
 		std::vector<int>::iterator pendEnd = pendStart + _elementSize;
 
 		main.insert(insertPos, pendStart, pendEnd);
 	}
-
-	// size_t totalExpected = _vec.size();
-    // if (main.size() < totalExpected)
-    // {
-    //     size_t remainingInPend = totalExpected - main.size();
-    //     size_t startByte = pend.size() - remainingInPend;
-    //     for (size_t i = startByte; i < pend.size(); ++i)
-    //         main.push_back(pend[i]);
-    // }
 
 	_vec = main;
 }
@@ -248,16 +257,16 @@ void PmergeMe::launch()
 	// _elementSize = 0;
 	printBefore();
 
-	long long startVec = getTimeInMicro();
+	// long long startVec = getTimeInMicro();
 	sortVector(1);
-	long long endVec = getTimeInMicro();
+	// long long endVec = getTimeInMicro();
 
 	// long long startDeq = getTimeInMicro();
 	// sortDeque(_deq);
 	// long long endDeq = getTimeInMicro();
 
 	printAfter();
-	displayStats(" std::vector", static_cast<double>(endVec - startVec), _vec.size());
+	// displayStats(" std::vector", static_cast<double>(endVec - startVec), _vec.size());
 	// displayStats("std::deque", static_cast<double>(endDeq - startDeq), _deq.size());
 }
 #pragma endregion
