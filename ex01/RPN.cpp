@@ -25,7 +25,7 @@ void RPN::resolve(const std::string& expression)
 	while (iss >> token)
 	{
 		if (token.length() != 1)
-			throw expressionException("number over 9 detected");
+			throw expressionException("a space is missing or a number is over 9");
 
 		char c = token[0];
 
@@ -62,7 +62,7 @@ void RPN::resolve(const std::string& expression)
 		throw expressionException("more than one number remaining");
 	else
 	{
-		std::cout << GREEN << "⋆‧₊☽ " << _stack.top() << " ☾₊‧⋆" << STD << std::endl;
+		std::cout << GREEN << " ⋆‧₊☽ " << _stack.top() << " ☾₊‧⋆ " << STD << std::endl;
 		_stack.pop();
 	}
 }

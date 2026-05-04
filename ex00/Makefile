@@ -6,8 +6,6 @@ OBJ_DIR		=		obj
 
 CXXFLAGS	=		-std=c++98 -Wall -Wextra -Werror -MMD -MP
 
-MAKEFLAGS	+=		--no-print-directory -j$(nproc)
-
 ################################################################################
 ###									FILES	 ###
 ################################################################################
@@ -27,10 +25,10 @@ DEP			=		$(OBJ:%.o=%.d)
 all: $(NAME)
 
 $(NAME): $(OBJ)
-			$(CXX) $(CFLAGS) $(OBJ) -o $(NAME)
+			$(CXX) $(CXXFLAGS) $(OBJ) -o $(NAME)
 
 $(OBJ_DIR)/%.o: %.cpp $(MAKEFILE) | $(OBJ_DIR)
-			$(CXX) $(CFLAGS) -o $@ -c $<
+			$(CXX) $(CXXFLAGS) -o $@ -c $<
 
 $(OBJ_DIR):
 			mkdir -p $(OBJ_DIR)

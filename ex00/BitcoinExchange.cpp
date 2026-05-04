@@ -3,6 +3,7 @@
 #include <sstream>
 #include <float.h>
 #include <errno.h>
+#include <cstdlib>
 
 btc::btc(): _tab() {}
 
@@ -76,11 +77,8 @@ bool btc::isValidDate(const std::string& date)
 	if (year > 2025 || year < 2009 || month < 1 || month > 12 || day < 1 || day > 31)
 		return false;
 	
-	if (month == 4 || month == 6 || month == 9 || month == 11)
-	{
-		if (day > 30)
-			return false;
-	}
+	if ((month == 4 || month == 6 || month == 9 || month == 11) && (day < 1 || day > 30))
+		return false;
 
 	if (month == 2)
 	{
@@ -144,7 +142,12 @@ void btc::processInput(std::string filename)
 		throw RuntimeException("could not open file.");
 
 	std::string line;
-	std::getline(ifs, line);
+
+	if (!std::getline(ifs, line))
+		throw RuntimeException("file is empty.");
+
+	if (trim(line) != "date | value")
+		throw RuntimeException("invalid header format. Expected 'date | value'");
 
 	while (std::getline(ifs, line))
 	{
@@ -155,30 +158,30 @@ void btc::processInput(std::string filename)
 			
 			size_t sep = line.find('|');
 			if (sep == std::string::npos)
-				throw RuntimeException("bad input => " + line);
+				throw RuntimeException("seperator missing => " + line + " ");
 			std::string date = trim(line.substr(0, sep));
 			std::string valStr = trim(line.substr(sep + 1));
 
 			if (!isValidDate(date))
-				throw RuntimeException("bad input => " + date);
+				throw RuntimeException("invalid date => " + date + " ");
 
 			char* endptr;
 			float userValue = strtod(valStr.c_str(), &endptr);
 			if (*endptr != '\0' && !isspace(*endptr))
-				throw RuntimeException("bad input => " + valStr);
+				throw RuntimeException("bad input => " + valStr + " ");
 
 			if (userValue < 0)
-				throw RuntimeException("not a positive number.");
+				throw RuntimeException("negative number detected => " + valStr + " ");
 
 			if (userValue > 1000)
-				throw RuntimeException("too large a number.");
+				throw RuntimeException("value too large => " + valStr + " ");
 
 			float price = getExchangeRate(date);
-			std::cout << date << " => " << userValue << " = " << (userValue * price) << std::endl;
+			std::cout << GREEN << date << " => " << userValue << " = " << (userValue * price) << " " << STD << std::endl;
 		}
 		catch (const std::exception& e)
 		{
-			std::cerr << "Error: " << e.what() << std::endl;
+			std::cerr << PINK << "Error: " << e.what() << std::endl;
 		}
 	}
 }

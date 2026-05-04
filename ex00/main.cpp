@@ -4,7 +4,7 @@ int main(int argc, char** argv)
 {
 	if (argc != 2)
 	{
-		std::cerr << "Error : could not open file." << std::endl;
+		std::cerr << PINK << "Error : could not open file." << STD << std::endl;
 		return 1;
 	}
 	try
@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 	}
 	catch (std::exception &e)
 	{
-		std::cerr << "Error: " << e.what() << std::endl;
+		std::cerr << PINK << "Error: " << e.what() << STD << std::endl;
 	}
 	return 0;
 }

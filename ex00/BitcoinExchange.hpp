@@ -4,6 +4,10 @@
 #include <iostream>
 #include <map>
 
+#define STD				"\033[0m"
+#define GREEN			"\033[38;5;34m\033[48;5;193m"
+#define PINK			"\033[38;5;199m\033[48;5;225m"
+
 class btc
 {
 	public:
@@ -27,7 +31,10 @@ class btc
 class RuntimeException : public std::exception
 {
 	public:
-		RuntimeException(const std::string& msg): _msg(msg) {}
+		RuntimeException(const std::string& msg) 
+		{
+			_msg = msg + " " + STD;
+		}
 		virtual ~RuntimeException() throw() {}
 		virtual const char* what() const throw()
 		{
