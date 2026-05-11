@@ -5,12 +5,12 @@
 #include <cctype>
 #include <vector>
 #include <deque>
+#include <stdio.h>
 
 class PmergeMe
 {
 	private:
 
-		int _elementSize;
 		std::vector<int> _vec;
 		std::deque<int> _deq;
 
@@ -20,7 +20,7 @@ class PmergeMe
 		void vFindJacobNbrs(int _elementSize, std::vector<int> *jacob, int pendSize);
 		void vFindInsertionOrder(int _elementSize, std::vector<int> *insertionOrder, std::vector<int> jacob, int pendSize);
 		void vBinaryInsertion(int _elementSize, std::vector<int> insertionOrder, std::vector<int> *main, std::vector<int> pend);
-		void vInsertOrphan(std::vector<int> *main);
+		void vInsertOrphan(int _elementSize, std::vector<int> *main);
 
 
 		void sortDeque(int _elementSize);

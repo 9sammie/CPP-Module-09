@@ -45,7 +45,7 @@ void PmergeMe::parseInput(int ac, char** av)
 		char* endPtr;
 		errno = 0;
 
-		long val = std::strtol(av[i], &endPtr, 10);
+		long val = strtol(av[i], &endPtr, 10);
 
 		if (errno == ERANGE || val > INT_MAX || val < INT_MIN)
 			throw std::runtime_error("integer overflow");
@@ -75,7 +75,7 @@ static long long getTimeInMicro()
 void PmergeMe::printBefore()
 {
 	std::cout << _vec[0];
-	for (int i = 1; i < _vec.size(); ++i)
+	for (size_t i = 1; i < _vec.size(); ++i)
 		std::cout << " " << _vec[i];
 	std::cout << std::endl;
 }
@@ -83,12 +83,12 @@ void PmergeMe::printBefore()
 void PmergeMe::printAfter()
 {
 	std::cout << _vec[0];
-	for (int i = 1; i < _vec.size(); ++i)
+	for (size_t i = 1; i < _vec.size(); ++i)
 		std::cout << " " << _vec[i];
 	std::cout << std::endl;
 }
 
-static void displayStats(std::string type, double elapse, size_t size)
+static void displayStats(std::string type, double elapse, int size)
 {
 	std::cout << "Time to process a range of " << size << " elements with"
 			  << type << ": " << std::fixed << std::setprecision(5) << elapse << " us" << std::endl;
@@ -100,33 +100,60 @@ static void displayStats(std::string type, double elapse, size_t size)
 //                             ✦  vectorLogic  ✦                              //
 #pragma region
 
-void PmergeMe::vInsertOrphan(std::vector<int> *main)
+void PmergeMe::vInsertOrphan(int _elementSize, std::vector<int> *main)
 {
-	if (main->size() < _vec.size())
+	size_t totalProcessed = main->size();
+
+	if (totalProcessed < _vec.size())
 	{
-	    for (size_t i = main->size(); i < _vec.size(); ++i) {
-	        int orphan = _vec[i];
+	    for (size_t i = totalProcessed; i < _vec.size(); i += _elementSize)
+		{
+	        int currentBlockSize = std::min(_elementSize, static_cast<int>(_vec.size() - i));
+
+			int masterValue = _vec[i + currentBlockSize - 1];
 
 	        size_t low = 0;
-	        size_t high = main->size();
-	        while (low < high) {
+	        size_t high = main->size() / _elementSize;
+
+	        while (low < high)
+			{
 	            size_t mid = low + (high - low) / 2;
-	            if ((*main)[mid] < orphan)
+	            if ((*main)[mid * _elementSize - 1] < masterValue)
 	                low = mid + 1;
 	            else
 	                high = mid;
 	        }
-	        main->insert(main->begin() + low, orphan);
-	    }
+			std::vector<int>::iterator itPos = main->begin() + (low * _elementSize);
+			std::vector<int>::const_iterator itStart = _vec.begin() + i;
+			std::vector<int>::const_iterator itEnd = itStart + currentBlockSize;
+
+			main->insert(itPos, itStart, itEnd);
+		}
 	}
 }
 
 void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrder, std::vector<int> *main, std::vector<int> pend)
 {
+	printf(", insertion order: ");
+	for(size_t i = 0; i < insertionOrder.size(); i++)
+		printf("%d ", insertionOrder[i]);
+
+	printf(", _vec: ");
+	for(size_t i = 0; i < _vec.size(); i++)
+		printf("%d ", _vec[i]);
+
+	printf(", main: ");
+	for(size_t i = 0; i < main->size(); i++)
+		printf("%d ", (*main)[i]);
+		
+	printf(", pend: ");
+	for(size_t i = 0; i < pend.size(); i++)
+		printf("%d ", pend[i]);		
+
 	for (size_t i = 0; i < insertionOrder.size(); i++)
 	{
 		// 1/ search for the an of the bn (the pair)
-		size_t itemIdx = insertionOrder[i];
+		int itemIdx = insertionOrder[i];
 
 		size_t pendOffset = (itemIdx - 2) * _elementSize;
 		if (pendOffset >= pend.size())
@@ -135,21 +162,25 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 		int pendElementMaster = pend[pendOffset + _elementSize - 1]; // find the master element of the pend we want to compare with the master element of the main.
 		size_t high;
 
-		if (itemIdx * 2 * _elementSize > _vec.size())		// if itemIdx too big, he is an orphan, so we search in the entire main.
+		if (itemIdx * 2 * _elementSize > static_cast<int>(_vec.size()))		// if itemIdx too big, he is an orphan, so we search in the entire main.
+		{
 			high = main->size() / _elementSize;
+			printf(", high: %zu", high);
+		}
 		else												// else we index high on the main element master matching the pending one.
 		{
 			int mainElementMaster = _vec[(itemIdx * 2) * _elementSize - 1];
 			high = 0;
 			while (high < main->size() / _elementSize && (*main)[high * _elementSize + _elementSize - 1] != mainElementMaster)
 				high++;
+			printf(", mainMaster of mainPend(%d): %d, high: %zu", pendElementMaster, mainElementMaster, high);
 		}
 
 		// 2/ insert from the matching pair since we know an is bigger than bn
 		size_t low = 0;
 		while (low < high)
 		{
-			size_t mid = low + (high - low) / 2;
+			int mid = low + (high - low) / 2;
 			if ((*main)[(mid + 1)* _elementSize -1] < pendElementMaster)
 				low = mid + 1;
 			else
@@ -159,7 +190,7 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 		std::vector<int>::iterator insertPos = main->begin() + (low * _elementSize);
 		std::vector<int>::iterator pendStart = pend.begin() + (itemIdx - 2) * _elementSize;
 
-		size_t remainingElements = std::min(_elementSize, (int)(pend.size() - pendOffset));
+		int remainingElements = std::min(_elementSize, static_cast<int>(pend.size() - pendOffset));
 		std::vector<int>::iterator pendEnd = pendStart + remainingElements;
 
 		main->insert(insertPos, pendStart, pendEnd);
@@ -168,17 +199,17 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 
 void PmergeMe::vFindInsertionOrder(int _elementSize, std::vector<int> *insertionOrder, std::vector<int> jacob, int pendSize)
 {
-	size_t maxBNbr = (pendSize / _elementSize + 1);
-	size_t pendElementNbr = pendSize / _elementSize;
+	int maxBNbr = (pendSize / _elementSize + 1);
+	int pendElementNbr = pendSize / _elementSize;
 
-	size_t lastJacob = 1;
+	int lastJacob = 1;
 
 	for (size_t i = 0; i < jacob.size(); i++)
 	{
-		size_t currentJacob = jacob[i];
-		size_t startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
+		int currentJacob = jacob[i];
+		int startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
 
-		for (size_t j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
+		for (int j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
 			insertionOrder->push_back(j);
 		if (currentJacob >= pendElementNbr)
 	        break;
@@ -188,7 +219,7 @@ void PmergeMe::vFindInsertionOrder(int _elementSize, std::vector<int> *insertion
 
 void PmergeMe::vFindJacobNbrs(int _elementSize, std::vector<int> *jacob, int pendSize)
 {
-	size_t pendElementNbr = pendSize / _elementSize;
+	int pendElementNbr = pendSize / _elementSize;
 
 	if (pendElementNbr == 0)
 		return;
@@ -197,39 +228,42 @@ void PmergeMe::vFindJacobNbrs(int _elementSize, std::vector<int> *jacob, int pen
 	jacob->push_back(5);
 	while (jacob->back() < pendElementNbr)
 	{
-		size_t nextJacob = (*jacob)[jacob->size() - 1] + 2 * (*jacob)[jacob->size() - 2];
+		int nextJacob = (*jacob)[jacob->size() - 1] + 2 * (*jacob)[jacob->size() - 2];
 		jacob->push_back(nextJacob);
 	}
+	printf("jacob: ");
+	for(size_t i = 0; i < jacob->size(); i++)
+		printf("%d ", (*jacob)[i]);
 }
 
 void PmergeMe::vInitVectors(int _elementSize, std::vector<int> *main, std::vector<int> *pend)
 {
-	for (size_t k = 0; k < _elementSize; ++k) main->push_back(_vec[k]);
-	for (size_t k = 0; k < _elementSize; ++k) main->push_back(_vec[_elementSize + k]);
+	for (int k = 0; k < _elementSize; ++k) main->push_back(_vec[k]);
+	for (int k = 0; k < _elementSize; ++k) main->push_back(_vec[_elementSize + k]);
 
-	for (size_t i = 2 * _elementSize; i + 2 * _elementSize <= _vec.size(); i += 2 * _elementSize)
+	for (int i = 2 * _elementSize; i + 2 * _elementSize <= static_cast<int>(_vec.size()); i += 2 * _elementSize)
 	{
-		for (size_t k = 0; k < _elementSize; ++k) pend->push_back(_vec[i + k]);
-		for (size_t k = 0; k < _elementSize; ++k) main->push_back(_vec[i + _elementSize + k]);
+		for (int k = 0; k < _elementSize; ++k) pend->push_back(_vec[i + k]);
+		for (int k = 0; k < _elementSize; ++k) main->push_back(_vec[i + _elementSize + k]);
 	}
 
-	size_t processedSize = (_vec.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _vec.size() = 17 --> ((17/(2*1)) * (2*1) = 16
+	int processedSize = (_vec.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _vec.size() = 17 --> ((17/(2*1)) * (2*1) = 16
 	for (size_t i = processedSize; i < _vec.size(); ++i)
 		pend->push_back(_vec[i]);
 }
 
 bool PmergeMe::vPairAndSwap(int _elementSize)
 {
-	if (_elementSize * 2 > _vec.size())
+	if (_elementSize * 2 > static_cast<int>(_vec.size()))
 		return 1;
 
-	for (size_t i = 0; i + 2 * _elementSize <= _vec.size(); i += 2 * _elementSize)
+	for (int i = 0; i + 2 * _elementSize <= static_cast<int>(_vec.size()); i += 2 * _elementSize)
 	{
-		size_t firstElementMaster = i + _elementSize -1;
-		size_t secondElementMaster = i + 2 * _elementSize -1;
+		int firstElementMaster = i + _elementSize -1;
+		int secondElementMaster = i + 2 * _elementSize -1;
 
 		if (_vec[firstElementMaster] > _vec[secondElementMaster])
-			for (size_t k = 0; k < _elementSize; ++k)
+			for (int k = 0; k < _elementSize; ++k)
 				std::swap(_vec[i + k], _vec[i + _elementSize + k]);
 	}
 	return 0;
@@ -255,9 +289,10 @@ void PmergeMe::sortVector(int _elementSize)
 
 	vBinaryInsertion(_elementSize, insertionOrder, &main, pend);
 
-	vInsertOrphan(&main);
+	vInsertOrphan(_elementSize, &main);
 
 	_vec = main;
+	printf("\n");
 }
 
 #pragma endregion
@@ -274,10 +309,10 @@ void PmergeMe::dInsertOrphan(std::deque<int> *main)
 	    for (size_t i = main->size(); i < _deq.size(); ++i) {
 	        int orphan = _deq[i];
 
-	        size_t low = 0;
-	        size_t high = main->size();
+	        int low = 0;
+	        int high = main->size();
 	        while (low < high) {
-	            size_t mid = low + (high - low) / 2;
+	            int mid = low + (high - low) / 2;
 	            if ((*main)[mid] < orphan)
 	                low = mid + 1;
 	            else
@@ -293,7 +328,7 @@ void PmergeMe::dBinaryInsertion(int _elementSize, std::deque<int> insertionOrder
 	for (size_t i = 0; i < insertionOrder.size(); i++)
 	{
 		// 1/ search for the an of the bn (the pair)
-		size_t itemIdx = insertionOrder[i];
+		int itemIdx = insertionOrder[i];
 
 		size_t pendOffset = (itemIdx - 2) * _elementSize;
 		if (pendOffset >= pend.size())
@@ -302,7 +337,7 @@ void PmergeMe::dBinaryInsertion(int _elementSize, std::deque<int> insertionOrder
 		int pendElementMaster = pend[pendOffset + _elementSize - 1]; // find the master element of the pend we want to compare with the master element of the main.
 		size_t high;
 
-		if (itemIdx * 2 * _elementSize > _deq.size())		// if itemIdx too big, he is an orphan, so we search in the entire main.
+		if (itemIdx * 2 * _elementSize > static_cast<int>(_deq.size()))		// if itemIdx too big, he is an orphan, so we search in the entire main.
 			high = main->size() / _elementSize;
 		else												// else we index high on the main element master matching the pending one.
 		{
@@ -326,7 +361,7 @@ void PmergeMe::dBinaryInsertion(int _elementSize, std::deque<int> insertionOrder
 		std::deque<int>::iterator insertPos = main->begin() + (low * _elementSize);
 		std::deque<int>::iterator pendStart = pend.begin() + (itemIdx - 2) * _elementSize;
 
-		size_t remainingElements = std::min(_elementSize, (int)(pend.size() - pendOffset));
+		int remainingElements = std::min(_elementSize, (int)(pend.size() - pendOffset));
 		std::deque<int>::iterator pendEnd = pendStart + remainingElements;
 
 		main->insert(insertPos, pendStart, pendEnd);
@@ -335,17 +370,17 @@ void PmergeMe::dBinaryInsertion(int _elementSize, std::deque<int> insertionOrder
 
 void PmergeMe::dFindInsertionOrder(int _elementSize, std::deque<int> *insertionOrder, std::deque<int> jacob, int pendSize)
 {
-	size_t maxBNbr = (pendSize / _elementSize + 1);
-	size_t pendElementNbr = pendSize / _elementSize;
+	int maxBNbr = (pendSize / _elementSize + 1);
+	int pendElementNbr = pendSize / _elementSize;
 
-	size_t lastJacob = 1;
+	int lastJacob = 1;
 
 	for (size_t i = 0; i < jacob.size(); i++)
 	{
-		size_t currentJacob = jacob[i];
-		size_t startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
+		int currentJacob = jacob[i];
+		int startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
 
-		for (size_t j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
+		for (int j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
 			insertionOrder->push_back(j);
 		if (currentJacob >= pendElementNbr)
 	        break;
@@ -355,7 +390,7 @@ void PmergeMe::dFindInsertionOrder(int _elementSize, std::deque<int> *insertionO
 
 void PmergeMe::dFindJacobNbrs(int _elementSize, std::deque<int> *jacob, int pendSize)
 {
-	size_t pendElementNbr = pendSize / _elementSize;
+	int pendElementNbr = pendSize / _elementSize;
 
 	if (pendElementNbr == 0)
 		return;
@@ -364,39 +399,39 @@ void PmergeMe::dFindJacobNbrs(int _elementSize, std::deque<int> *jacob, int pend
 	jacob->push_back(5);
 	while (jacob->back() < pendElementNbr)
 	{
-		size_t nextJacob = (*jacob)[jacob->size() - 1] + 2 * (*jacob)[jacob->size() - 2];
+		int nextJacob = (*jacob)[jacob->size() - 1] + 2 * (*jacob)[jacob->size() - 2];
 		jacob->push_back(nextJacob);
 	}
 }
 
 void PmergeMe::dInitdeques(int _elementSize, std::deque<int> *main, std::deque<int> *pend)
 {
-	for (size_t k = 0; k < _elementSize; ++k) main->push_back(_deq[k]);
-	for (size_t k = 0; k < _elementSize; ++k) main->push_back(_deq[_elementSize + k]);
+	for (int k = 0; k < _elementSize; ++k) main->push_back(_deq[k]);
+	for (int k = 0; k < _elementSize; ++k) main->push_back(_deq[_elementSize + k]);
 
 	for (size_t i = 2 * _elementSize; i + 2 * _elementSize <= _deq.size(); i += 2 * _elementSize)
 	{
-		for (size_t k = 0; k < _elementSize; ++k) pend->push_back(_deq[i + k]);
-		for (size_t k = 0; k < _elementSize; ++k) main->push_back(_deq[i + _elementSize + k]);
+		for (int k = 0; k < _elementSize; ++k) pend->push_back(_deq[i + k]);
+		for (int k = 0; k < _elementSize; ++k) main->push_back(_deq[i + _elementSize + k]);
 	}
 
-	size_t processedSize = (_deq.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _deq.size() = 17 --> ((17/(2*1)) * (2*1) = 16
+	int processedSize = (_deq.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _deq.size() = 17 --> ((17/(2*1)) * (2*1) = 16
 	for (size_t i = processedSize; i < _deq.size(); ++i)
 		pend->push_back(_deq[i]);
 }
 
 bool PmergeMe::dPairAndSwap(int _elementSize)
 {
-	if (_elementSize * 2 > _deq.size())
+	if (_elementSize * 2 > static_cast<int>(_deq.size()))
 		return 1;
 
 	for (size_t i = 0; i + 2 * _elementSize <= _deq.size(); i += 2 * _elementSize)
 	{
-		size_t firstElementMaster = i + _elementSize -1;
-		size_t secondElementMaster = i + 2 * _elementSize -1;
+		int firstElementMaster = i + _elementSize -1;
+		int secondElementMaster = i + 2 * _elementSize -1;
 
 		if (_deq[firstElementMaster] > _deq[secondElementMaster])
-			for (size_t k = 0; k < _elementSize; ++k)
+			for (int k = 0; k < _elementSize; ++k)
 				std::swap(_deq[i + k], _deq[i + _elementSize + k]);
 	}
 	return 0;
@@ -442,12 +477,12 @@ void PmergeMe::launch()
 	sortVector(1);
 	long long endVec = getTimeInMicro();
 
-	long long startDeq = getTimeInMicro();
-	sortDeque(1);
-	long long endDeq = getTimeInMicro();
+	// long long startDeq = getTimeInMicro();
+	// sortDeque(1);
+	// long long endDeq = getTimeInMicro();
 
 	printAfter();
 	displayStats(" std::vector", static_cast<double>(endVec - startVec)*0.00001, _vec.size());
-	displayStats(" std::deque", static_cast<double>(endDeq - startDeq)*0.00001, _deq.size());
+	// displayStats(" std::deque", static_cast<double>(endDeq - startDeq)*0.00001, _deq.size());
 }
 #pragma endregion
