@@ -51,7 +51,7 @@ void PmergeMe::parseInput(int ac, char** av)
 			throw std::runtime_error("integer overflow");
 		if (*endPtr != '\0')
 			throw std::runtime_error(("bad input: ") + *endPtr);
-		if (val <= 0)
+		if (val < 0)
 			throw std::runtime_error("negative number");
 
 		_vec.push_back(static_cast<int>(val));
@@ -102,54 +102,20 @@ static void displayStats(std::string type, double elapse, int size)
 
 void PmergeMe::vInsertOrphan(int _elementSize, std::vector<int> *main)
 {
+	(void)_elementSize;
 	size_t totalProcessed = main->size();
 
-	if (totalProcessed < _vec.size())
+	printf("orphan: ");
+	for (size_t i = totalProcessed; i < _vec.size(); i++)
 	{
-	    for (size_t i = totalProcessed; i < _vec.size(); i += _elementSize)
-		{
-	        int currentBlockSize = std::min(_elementSize, static_cast<int>(_vec.size() - i));
-
-			int masterValue = _vec[i + currentBlockSize - 1];
-
-	        size_t low = 0;
-	        size_t high = main->size() / _elementSize;
-
-	        while (low < high)
-			{
-	            size_t mid = low + (high - low) / 2;
-	            if ((*main)[mid * _elementSize - 1] < masterValue)
-	                low = mid + 1;
-	            else
-	                high = mid;
-	        }
-			std::vector<int>::iterator itPos = main->begin() + (low * _elementSize);
-			std::vector<int>::const_iterator itStart = _vec.begin() + i;
-			std::vector<int>::const_iterator itEnd = itStart + currentBlockSize;
-
-			main->insert(itPos, itStart, itEnd);
-		}
+		printf("%d ", _vec[i]);
+		main->push_back(_vec[i]);
 	}
+	printf("\n");
 }
 
 void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrder, std::vector<int> *main, std::vector<int> pend)
 {
-	printf(", insertion order: ");
-	for(size_t i = 0; i < insertionOrder.size(); i++)
-		printf("%d ", insertionOrder[i]);
-
-	printf(", _vec: ");
-	for(size_t i = 0; i < _vec.size(); i++)
-		printf("%d ", _vec[i]);
-
-	printf(", main: ");
-	for(size_t i = 0; i < main->size(); i++)
-		printf("%d ", (*main)[i]);
-		
-	printf(", pend: ");
-	for(size_t i = 0; i < pend.size(); i++)
-		printf("%d ", pend[i]);		
-
 	for (size_t i = 0; i < insertionOrder.size(); i++)
 	{
 		// 1/ search for the an of the bn (the pair)
@@ -162,10 +128,12 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 		int pendElementMaster = pend[pendOffset + _elementSize - 1]; // find the master element of the pend we want to compare with the master element of the main.
 		size_t high;
 
-		if (itemIdx * 2 * _elementSize > static_cast<int>(_vec.size()))		// if itemIdx too big, he is an orphan, so we search in the entire main.
+		int numpairs = (_vec.size()/(2 * _elementSize));
+
+		if (itemIdx > numpairs)		// if itemIdx too big, he is an orphan, so we search in the entire main.
 		{
+			// printf("\nORPHAN PAIR\n");
 			high = main->size() / _elementSize;
-			printf(", high: %zu", high);
 		}
 		else												// else we index high on the main element master matching the pending one.
 		{
@@ -173,7 +141,6 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 			high = 0;
 			while (high < main->size() / _elementSize && (*main)[high * _elementSize + _elementSize - 1] != mainElementMaster)
 				high++;
-			printf(", mainMaster of mainPend(%d): %d, high: %zu", pendElementMaster, mainElementMaster, high);
 		}
 
 		// 2/ insert from the matching pair since we know an is bigger than bn
@@ -200,7 +167,8 @@ void PmergeMe::vBinaryInsertion(int _elementSize, std::vector<int> insertionOrde
 void PmergeMe::vFindInsertionOrder(int _elementSize, std::vector<int> *insertionOrder, std::vector<int> jacob, int pendSize)
 {
 	int maxBNbr = (pendSize / _elementSize + 1);
-	int pendElementNbr = pendSize / _elementSize;
+	printf("MAXNBR: %d", maxBNbr);
+	int pendElementNbr = (pendSize + _elementSize - 1) / _elementSize;
 
 	int lastJacob = 1;
 
@@ -209,12 +177,38 @@ void PmergeMe::vFindInsertionOrder(int _elementSize, std::vector<int> *insertion
 		int currentJacob = jacob[i];
 		int startIdx = (currentJacob > maxBNbr) ? maxBNbr : currentJacob;
 
-		for (int j = startIdx; j > lastJacob; --j) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
+		for (int j = startIdx; j > lastJacob; j--) // ex: lastJacob = 5, then currJacob is 11 and we wanna go from 11 to 5.
 			insertionOrder->push_back(j);
-		if (currentJacob >= pendElementNbr)
+		if (currentJacob > pendElementNbr)
 	        break;
 		lastJacob = currentJacob;
 	}
+
+	// if (!jacob.empty())
+	// {
+	// 	int i = 0;
+	// 	while (jacob[i])
+	// 		i++;
+	// 	i--;
+	// 	printf("JACOB %d ", jacob[i]);
+	// 	if (i < pendSize)
+	// 	{
+	// 		printf("PENDSIZE %d", pendSize);
+	// 		int remainingJacob = pendSize;
+	// 		while (remainingJacob > jacob[i])
+	// 		{
+	// 			insertionOrder->push_back(remainingJacob);
+	// 			remainingJacob--;
+	// 		}
+	// 	}
+	// }
+
+
+	printf("pENbr: %d, insertOrder: ", pendElementNbr);
+	for (size_t i = 0; i < insertionOrder->size(); i++)
+		printf("%d ", (*insertionOrder)[i]);
+	printf("\n");
+
 }
 
 void PmergeMe::vFindJacobNbrs(int _elementSize, std::vector<int> *jacob, int pendSize)
@@ -226,14 +220,11 @@ void PmergeMe::vFindJacobNbrs(int _elementSize, std::vector<int> *jacob, int pen
 
 	jacob->push_back(3);
 	jacob->push_back(5);
-	while (jacob->back() < pendElementNbr)
+	while (jacob->back() <= pendElementNbr)
 	{
 		int nextJacob = (*jacob)[jacob->size() - 1] + 2 * (*jacob)[jacob->size() - 2];
 		jacob->push_back(nextJacob);
 	}
-	printf("jacob: ");
-	for(size_t i = 0; i < jacob->size(); i++)
-		printf("%d ", (*jacob)[i]);
 }
 
 void PmergeMe::vInitVectors(int _elementSize, std::vector<int> *main, std::vector<int> *pend)
@@ -249,7 +240,11 @@ void PmergeMe::vInitVectors(int _elementSize, std::vector<int> *main, std::vecto
 
 	int processedSize = (_vec.size() / (2 * _elementSize)) * (2 * _elementSize); // ex: elementSize = 1 et _vec.size() = 17 --> ((17/(2*1)) * (2*1) = 16
 	for (size_t i = processedSize; i < _vec.size(); ++i)
+	{
 		pend->push_back(_vec[i]);
+		if (i + 1 >= static_cast<size_t>(processedSize + _elementSize))
+			break;
+	}
 }
 
 bool PmergeMe::vPairAndSwap(int _elementSize)
@@ -283,6 +278,15 @@ void PmergeMe::sortVector(int _elementSize)
 
 	vInitVectors(_elementSize, &main, &pend);
 
+	printf("\npend: ");
+	for (size_t i = 0; i < pend.size(); i++)
+		printf("%d ", pend[i]);
+
+	printf("main: ");
+	for (size_t i = 0; i < main.size(); i++)
+		printf("%d ", main[i]);
+	printf(" ,");
+
 	vFindJacobNbrs(_elementSize, &jacob, pend.size());
 
 	vFindInsertionOrder(_elementSize, &insertionOrder, jacob, pend.size());
@@ -292,6 +296,9 @@ void PmergeMe::sortVector(int _elementSize)
 	vInsertOrphan(_elementSize, &main);
 
 	_vec = main;
+	printf("_elementSize: %d, _vec: ", _elementSize);
+	for (size_t i = 0; i < _vec.size(); i++)
+		printf("%d ", _vec[i]);
 	printf("\n");
 }
 
